@@ -18,7 +18,7 @@ class PushModelArgs(BaseModel):
     message: str = Field(description="A brief message to push")
 
 
-@mcp.tool()
+@mcp.tool(name="send_push", description="Send a push notification with this brief message")
 def push(args: PushModelArgs):
     """Send a push notification with this brief message"""
     print(f"Push: {args.message}")

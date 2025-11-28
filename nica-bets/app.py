@@ -1,12 +1,14 @@
 import gradio as gr
 from util import css, js, Color
 import pandas as pd
-from bets_configuration import names, lastnames, short_model_names
+from bets_configuration import names, lastnames, short_model_names,run_every_n_minutes
 import plotly.express as px
 from database import read_log
 
 from bets import User
 import json
+import asyncio
+import threading
 
 mapper = {
     "trace": Color.WHITE,
@@ -19,6 +21,8 @@ mapper = {
 
 REFRESH_TIMER= 60 #120
 REFRESH_LOG_TIMER=60 #0.5
+# Global flag to control the background loop
+KEEP_RUNNING = True
 
 class Gambler:
     def __init__(self, name: str, lastname: str, model_name: str):
@@ -31,7 +35,13 @@ class Gambler:
         self.account = User.get(self.name)
         
     def get_title(self) -> str:
-        return f"<div style='text-align: center;font-size:34px;'>{self.name}<span style='color:#ccc;font-size:24px;'> ({self.model_name}) - {self.lastname}</span></div>"
+        return f"""<div style='text-align: center;font-size:34px;'>{self.name}
+        <span style='color:#ccc;font-size:24px;'> ({self.model_name}) - {self.lastname}</span>
+        </div>
+        <div style='text-align: center;font-size:13px;'>
+        <bold> Strategy:<bold>  {self.get_strategy()}
+        </div>
+        """
     
     def get_strategy(self) -> str:
         return self.account.get_strategy()
@@ -83,10 +93,10 @@ class Gambler:
         """Convert holdings to DataFrame for display"""
         holdings = self.account.get_holdings()
         if not holdings:
-            return pd.DataFrame(columns=["Sport", "Revenue"])
+            return pd.DataFrame(columns=["Sport", "Total"])
 
         df = pd.DataFrame(
-            [{"Sport": sport, "Revenue": revenue} for sport, revenue in holdings.items()]
+            [{"Sport": sport, "Total": revenue} for sport, revenue in holdings.items()]
         )
         return df
     
@@ -110,6 +120,7 @@ class GamblerView:
         self.transactions_table = None
 
     def make_ui(self):
+        #Pintar la estrategi de los apostadoress
         with gr.Column():
             gr.HTML(self.trader.get_title())
             with gr.Row():
@@ -118,13 +129,12 @@ class GamblerView:
                 self.chart = gr.Plot(
                     self.trader.get_portfolio_value_chart, container=True, show_label=False
                 )
-            with gr.Row(variant="panel"):
-                self.log = gr.HTML(self.trader.get_logs)
+            
             with gr.Row():
                 self.holdings_table = gr.Dataframe(
                     value=self.trader.get_holdings_df,
-                    label="Holdings",
-                    headers=["Sport", "Revenue"], #add Perdidas- Losses
+                    label="Profit/Loss",
+                    headers=["Sport", "Tolatl"], #add Perdidas- Losses
                     row_count=(5, "dynamic"),
                     col_count=2,
                     max_height=300,
@@ -141,6 +151,9 @@ class GamblerView:
                     wrap=True,
                     elem_classes=["dataframe-fix"],
                 )
+            with gr.Row(variant="panel"):
+                self.log = gr.HTML(self.trader.get_logs)
+
         timer = gr.Timer(value=REFRESH_TIMER)
         timer.tick(
             fn=self.refresh,
@@ -165,7 +178,7 @@ class GamblerView:
         )
 
     def refresh(self):
-        print("***refreshing GUI")
+        print("***Refreshing GUI\n")
         self.trader.reload()
         return (
             self.trader.get_portfolio_value(),
@@ -195,6 +208,35 @@ def create_ui():
     return ui
 
 
+def start_async_loop_in_thread(coroutine_func):
+    """
+    Synchronous wrapper to start the asyncio loop in the new thread.
+    """
+    # This function is what the threading.Thread executes
+    asyncio.run(coroutine_func())
+
 if __name__ == "__main__":
     ui = create_ui()
-    ui.launch(inbrowser=True)
+    # Create and start the background thread
+    background_thread = threading.Thread(
+        target=start_async_loop_in_thread,
+        args=(run_every_n_minutes,),#la coma depues del nombre de la función es importante
+        daemon=True # IMPORTANT: Ensures thread dies when the main program exits
+    )
+    background_thread.start()
+    print("[MAIN] Background thread started in parallel.")
+
+    # Launch the synchronous Gradio UI (This line BLOCKS execution)
+    try:
+        ui.launch(share=True) 
+    except KeyboardInterrupt:
+        # Graceful exit if the user presses Ctrl+C
+        print("\n[MAIN] Caught KeyboardInterrupt. Shutting down...")
+    finally:
+        # Ensure the background thread loop stops
+        KEEP_RUNNING = False
+        if background_thread.is_alive():
+            background_thread.join(timeout=1) # Wait briefly for the thread to finish
+        print("[MAIN] Application fully exited.")
+
+    

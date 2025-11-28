@@ -8,7 +8,7 @@ load_dotenv(override=True)
 cwd = os.getcwd()
 #print(f"***cwd: {cwd}")
 
-cwd = "/Users/exjaflo/Documents/nisum/github/agentes/nica-bets/"
+cwd = "" #"/Users/exjaflo/Documents/nisum/github/agentes/nica-bets/"
 
 DB = cwd + "bets.db"
 

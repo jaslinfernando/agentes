@@ -7,9 +7,6 @@ from datetime import datetime
 import json
 import uuid
 
-
-# Mock implementation of get_bet function
-
 INITIAL_BALANCE = 10_0.0
 INITIAL_USER_ID= 0
 
@@ -112,7 +109,7 @@ class User(BaseModel):
     initial_deposit: float
     balance: float
     bets: list[Bet]
-    holdings: dict[str, int]
+    holdings: dict[str, float]
 
     strategy: str
     portfolio_value_time_series: list[tuple[str, float]]
@@ -189,19 +186,19 @@ class User(BaseModel):
         data["total_portfolio_value"] = portfolio_value
         data["total_profit_loss"] = pnl
         #write_log(self.username, "account", f"Retrieved account details")
-        write_log(self.username, "account", f"Retrieved account details balance: {self.balance}")
+        write_log(self.username, "account", f"Retrieved account details balance: {self.balance} for {self.username}")
         return json.dumps(data)
     
     def get_strategy(self) -> str:
         """ Return the strategy of the account """
-        write_log(self.username, "account", f"Retrieved strategy")
+        write_log(self.username, "account", f"Retrieved strategy for {self.username}: {self.strategy}")
         return self.strategy
     
     def change_strategy(self, strategy: str) -> str:
-        """ At your discretion, if you choose to, call this to change your investment strategy for the future """
+        """ At your discretion, if you choose to, call this to change your bet strategy for the future """
         self.strategy = strategy
         self.save()
-        write_log(self.username, "account", f"Changed strategy")
+        write_log(self.username, "account", f"Changed strategy for {self.username} to: {self.strategy}")
         return "Changed strategy"
     
 
@@ -218,13 +215,13 @@ class User(BaseModel):
 
         status = "Pending" #by default       
         
-        bet = Bet(username=username,momio=momio,chosen_team=chosen_team,bet_amount=bet_amount, status=status, total_profit=total_profit,net_profit_amount=net_profit_amount,rationale=rationale
+        bet = Bet(username=username.lower(),momio=momio,chosen_team=chosen_team,bet_amount=bet_amount, status=status, total_profit=total_profit,net_profit_amount=net_profit_amount,rationale=rationale
                   ,bet_id = bet_id.__str__())
         if bet.is_valid(current_time, user.balance):
             self.username = username
             self.bets.append(bet)     
             
-            write_log(self.username, "account", f"bet {bet_amount} to[ {momio.game.local_team.name} vs {momio.game.visit_team.name} in {momio.game.local_team.sport.name}]")
+            write_log(self.username.lower(), "account", f"bet {bet_amount} to[ {momio.game.local_team.name} vs {momio.game.visit_team.name} in {momio.game.local_team.sport.name} and bet id: {bet_id}]")
             return "Completed. Latest details:\n" + self.report()
             #return bet
         return None
@@ -234,7 +231,7 @@ class User(BaseModel):
         total_profit = 0.0 #"Monto total retornado si gana (Monto Apostado * Momio)"
         net_profit_amount = 0.0 #Ganancia total - Monto Apostado
         
-        user = User.get(username)
+        user = User.get(username.lower())
         if not user:
             return None
         
@@ -264,89 +261,16 @@ class User(BaseModel):
                     self.balance -= f.bet_amount #yo pierdo mi apuesta
                     self.holdings[f.chosen_team.sport.name] = self.holdings.get(f.chosen_team.sport.name, 0) - f.bet_amount
                     f.status = "Lose" #si el otro equipo gana yo pierdo
-                    self.momio.game.winner_team = self.momi
+                    f.momio.game.winner_team = f.momio.game.visit_team
                 elif status.upper() == "Lose".upper():#si el otro equipo pierde yo gano
                     self.balance += f.total_profit
                     self.holdings[f.chosen_team.sport.name] = self.holdings.get(f.chosen_team.sport.name, 0) + f.total_profit
                     f.status = "Win"
             self.bets[index] = f
             self.save()
+        else:
+            print("Bet not found, sorry...n")
         return self.report()
+
     
         
-
-# class BettingSystem:
-#     def __init__(self):
-#         self.users = {}
-#         self.bets = {}
-#         self.current_bet_id = 0
-#         self.current_user_id = 0
-
-
-#     # users: dict[User,int]
-#     # bets: dict[Bet,int]
-#     # current_bet_id: int
-#     # current_user_id: int
-    
-
-#     def create_account(self, username: str, initial_deposit: float) -> User:
-#         self.current_user_id += 1
-#         user = User(self.current_user_id, username, initial_deposit)
-#         self.users[self.current_user_id] = user
-#         return user
-
-#     def place_bet(self, user_id: int, sport: str, teams: tuple, amount: float) -> Bet:
-#         user = self.users.get(user_id)
-#         if not user or amount > user.balance:
-#             return None
-#         current_time = datetime.datetime.now()
-#         self.current_bet_id += 1
-#         momio = get_bet(sport)
-#         bet = Bet(self.current_bet_id, user_id, sport, momio, teams, amount)
-#         if bet.is_valid(current_time, user.balance):
-#             user.balance -= amount
-#             user.bets.append(bet)
-#             self.bets[self.current_bet_id] = bet
-#             return bet
-#         return None
-
-#     def modify_bet(self, user_id: int, bet_id: int, amount: float, momio: float) -> None:
-#         bet = self.bets.get(bet_id)
-#         user = self.users.get(user_id)
-#         if bet and user and bet.user_id == user_id:
-#             initial_amount = bet.amount
-#             if amount <= (user.balance + initial_amount):
-#                 bet.update_bet(amount, momio)
-#                 user.balance += initial_amount - amount
-
-#     def report_investments(self, user_id: int) -> float:
-#         user = self.users.get(user_id)
-#         if user:
-#             return sum(bet.amount for bet in user.bets if bet.status == 'pending')
-#         return 0.0
-
-#     def report_profit_loss(self, user_id: int) -> float:
-#         user = self.users.get(user_id)
-#         if user:
-#             return user.calculate_profit_loss()
-#         return 0.0
-
-#     def list_user_transactions(self, user_id: int) -> list:
-#         user = self.users.get(user_id)
-#         if user:
-#             return user.list_transactions()
-#         return []
-
-#     def validate_bet(self, team: str) -> bool:
-#         # Placeholder for actual game status check
-#         return True
-
-# # Example Usage
-# if __name__ == "__main__":
-#     system = BettingSystem()
-#     user = system.create_account("jaslin", 100.0)
-#     system.place_bet(user.user_id, 'soccer', ('TeamA', 'TeamB'), 50.0)
-#     print(system.report_investments(user.user_id))
-#     print(system.report_profit_loss(user.user_id))
-#     print(system.list_user_transactions(user.user_id))
-

@@ -19,9 +19,6 @@ from templates import (
 
 from mcp_params import trader_mcp_server_params, researcher_mcp_server_params
 
-#from accounts_client import read_accounts_resource, read_strategy_resource
-
-
 load_dotenv(override=True)
 
 CLIENT_SESSION_TIMEOUT_SECONDS = 120
@@ -36,7 +33,7 @@ GROK_BASE_URL = "https://api.x.ai/v1"
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
-MAX_TURNS = 5
+MAX_TURNS = 10
 
 openrouter_client = AsyncOpenAI(base_url=OPENROUTER_BASE_URL, api_key=openrouter_api_key)
 deepseek_client = AsyncOpenAI(base_url=DEEPSEEK_BASE_URL, api_key=deepseek_api_key)
@@ -106,6 +103,7 @@ class Gambler:
         await Runner.run(self.agent, message, max_turns=MAX_TURNS)
 
     async def run_with_mcp_servers(self):
+        print(f"Current gamblers.py directory: {os.getcwd()}")
         async with AsyncExitStack() as stack:
             trader_mcp_servers = [
                 await stack.enter_async_context(
@@ -125,6 +123,7 @@ class Gambler:
     async def run_with_trace(self):
         trace_name = f"{self.name}-beting" if self.do_trade else f"{self.name}-rebalancing"
         trace_id = make_trace_id(f"{self.name.lower()}")
+        print(f"***trace_name:{trace_name}, trace_id:{trace_id}")
         with trace(trace_name, trace_id=trace_id):
             await self.run_with_mcp_servers()
 

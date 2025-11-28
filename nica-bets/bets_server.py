@@ -2,8 +2,19 @@ from mcp.server.fastmcp import FastMCP
 from bets import User,Sport,Team,Game,Momio,Bet
 from datetime import datetime
 from typing import Dict 
+import sys
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 mcp = FastMCP("bets_server")
+
+cwd = os.getcwd()
+
+print("Starting MCP server...", file=sys.stderr)
+print(f"Current directory: {cwd}")
+
 
 @mcp.tool(name="get_holdings", description="Get the holdings of the given account name")
 async def get_holdings(name: str) -> dict[str, int]:
@@ -33,7 +44,7 @@ async def place_bate(name: str, sportname: str, local_team_name: str, visit_team
     visit_team = Team(name=visit_team_name,sport=sport)
     final_score = ""
     date_time = datetime.now()
-    winner_team = Team(name="",sport=sport) # X equipo que ha ganado
+    winner_team = Team(name="",sport=sport) # X equipo que ha ganado, no lo sabemos aun pero se sabrá cuando se ejecute la tool que actualiza la apuesta
     game = Game(local_team=local_team,visit_team=visit_team,final_score=final_score,winner_team=winner_team)
     
     bet_type = "Moneyline"
@@ -75,6 +86,16 @@ async def get_balance(username: str)-> float:
     
     b = User.get(name=username).balance 
     return b
+
+@mcp.tool()
+async def change_strategy(name: str, strategy: str) -> str:
+    """At your discretion, if you choose to, call this to change your bet strategy for the future.
+
+    Args:
+        name: The name of the account holder
+        strategy: The new strategy for the account
+    """
+    return User.get(name).change_strategy(strategy=strategy)
 
 @mcp.resource("accounts://bets_server/{name}")
 async def read_account_resource(name: str) -> str:
