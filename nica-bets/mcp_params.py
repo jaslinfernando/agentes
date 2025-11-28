@@ -4,13 +4,14 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-brave_env = {"BRAVE_API_KEY": os.getenv("BRAVE_API_KEY")}
+#brave_env = {"BRAVE_API_KEY": os.getenv("BRAVE_API_KEY")}
+serper_env = {"SERPER_API_KEY": os.getenv("SERPER_API_KEY")}
 
 
 # The full set of MCP servers for the trader: Accounts, Push Notification and the Market
 
 trader_mcp_server_params = [
-    {"command": "uv", "args": ["run", "accounts_server.py"]},
+    {"command": "uv", "args": ["run", "bets_server.py"]},
     {"command": "uv", "args": ["run", "push_server.py"]},
     
 ]
@@ -21,11 +22,9 @@ trader_mcp_server_params = [
 def researcher_mcp_server_params(name: str):
     return [
         {"command": "uvx", "args": ["mcp-server-fetch"]},
-        {
-            "command": "npx",
-            "args": ["-y", "@modelcontextprotocol/server-brave-search"],
-            "env": brave_env,
-        },
+        #{ "command": "npx", "args": ["-y", "@modelcontextprotocol/server-brave-search"], "env": brave_env, },
+        {"command": "npx", "args": ["-y", "serper-search-scrape-mcp-server"], "env": serper_env},
+        
         {
             "command": "npx",
             "args": ["-y", "mcp-memory-libsql"],

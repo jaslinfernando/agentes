@@ -2,10 +2,15 @@ import sqlite3
 import json
 from datetime import datetime
 from dotenv import load_dotenv
+import os
 
 load_dotenv(override=True)
+cwd = os.getcwd()
+#print(f"***cwd: {cwd}")
 
-DB = "bets.db"
+cwd = "/Users/exjaflo/Documents/nisum/github/agentes/nica-bets/"
+
+DB = cwd + "bets.db"
 
 with sqlite3.connect(DB) as conn:
     cursor = conn.cursor()
@@ -66,6 +71,7 @@ def read_log(name: str, last_n=10):
 
 def write_account(name, account_dict):
     json_data = json.dumps(account_dict)
+    #print(f"json_data: {json_data}")
     with sqlite3.connect(DB) as conn:
         cursor = conn.cursor()
         cursor.execute('''

@@ -1,67 +1,126 @@
-class Bet:
-    def __init__(self):
-        self.users = {}
+import datetime
 
-    def create_user(self, username: str, initial_deposit: float) -> None:
-        if username in self.users:
-            raise ValueError("User already exists")
-        self.users[username] = {
-            'balance': initial_deposit,
-            'portfolio': {},
-            'transactions': [{'type': 'deposit', 'amount': initial_deposit}]
-        }
-
-    def place_bet(self, username: str, sport: str, amount: float) -> None:
-        self.validate_bet(username, sport, amount)
-        self.users[username]['balance'] -= amount
-        if sport in self.users[username]['portfolio']:
-            self.users[username]['portfolio'][sport] += amount
-        else:
-            self.users[username]['portfolio'][sport] = amount
-        self.users[username]['transactions'].append({'type': 'bet', 'sport': sport, 'amount': amount})
-
-    def modify_bet(self, username: str, sport: str, new_amount: float) -> None:
-        if sport not in self.users[username]['portfolio']:
-            raise ValueError("No existing bet on this sport to modify")
-        current_amount = self.users[username]['portfolio'][sport]
-        difference = new_amount - current_amount
-        self.validate_bet(username, sport, difference)
-        self.users[username]['portfolio'][sport] = new_amount
-        self.users[username]['balance'] -= difference
-        self.users[username]['transactions'].append({'type': 'modify_bet', 'sport': sport, 'old_amount': current_amount, 'new_amount': new_amount})
-
-    def calculate_portfolio_value(self, username: str) -> float:
-        return sum(self.users[username]['portfolio'].values())
-
-    def calculate_profit_loss(self, username: str) -> float:
-        initial_deposit = next((t['amount'] for t in self.users[username]['transactions'] if t['type'] == 'deposit'), 0)
-        current_balance_with_bets = self.users[username]['balance'] + self.calculate_portfolio_value(username)
-        return current_balance_with_bets - initial_deposit
-
-    def report_investments(self, username: str) -> dict:
-        return self.users[username]['portfolio'].copy()
-
-    def report_transactions(self, username: str) -> list:
-        return self.users[username]['transactions'].copy()
-
-    def validate_bet(self, username: str, sport: str, amount: float) -> None:
-        if amount <= 0:
-            raise ValueError("Bet amount must be positive")
-        if self.users[username]['balance'] < amount:
-            raise ValueError("Insufficient funds")
-        if not self.is_valid_bet(sport):
-            raise ValueError("Cannot place bet on this match")
-
-    def is_valid_bet(self, sport: str) -> bool:
-        # Placeholder for match validation logic
-        # Assume all sports are valid except those that return 0
-        return get_bet(sport) > 0
+# Mock implementation of get_bet function
 
 def get_bet(sport: str) -> float:
-    # Test implementation of get_bet(sport) function with fixed return values
-    bets = {
-        "soccer": 100.0,
-        "basketball": 150.0,
-        "baseball": 200.0
+    """Returns the current betting odds for a given sport."""
+    odds = {
+        'soccer': 1.5,
+        'basketball': 2.0,
+        'baseball': 1.8
     }
-    return bets.get(sport.lower(), 0)
+    return odds.get(sport, 1.0)
+
+class User:
+    def __init__(self, user_id: int, username: str, initial_deposit: float):
+        self.user_id = user_id
+        self.username = username
+        self.balance = initial_deposit
+        self.initial_deposit = initial_deposit
+        self.bets = []
+
+    def deposit(self, amount: float) -> None:
+        self.balance += amount
+
+    def withdraw(self, amount: float) -> None:
+        if amount <= self.balance:
+            self.balance -= amount
+
+    def get_portfolio_value(self) -> float:
+        return self.balance + sum(bet.amount for bet in self.bets if bet.status == 'pending')
+
+    def calculate_profit_loss(self) -> float:
+        return self.balance - self.initial_deposit
+
+    def list_transactions(self) -> list:
+        return [(bet.bet_id, bet.sport, bet.amount, bet.status) for bet in self.bets]
+
+class Bet:
+    def __init__(self, bet_id: int, user_id: int, sport: str, momio: float, teams: tuple, amount: float):
+        self.bet_id = bet_id
+        self.user_id = user_id
+        self.sport = sport
+        self.momio = momio
+        self.teams = teams
+        self.amount = amount
+        self.status = 'pending'
+        self.created_at = datetime.datetime.now()
+
+    def update_bet(self, amount: float, momio: float) -> None:
+        self.amount = amount
+        self.momio = momio
+
+    def finalize_bet(self, result: str) -> None:
+        self.status = result
+
+    def is_valid(self, current_time: datetime.datetime, user_balance: float) -> bool:
+        return self.amount <= user_balance #self.created_at <= current_time and 
+        
+
+class BettingSystem:
+    def __init__(self):
+        self.users = {}
+        self.bets = {}
+        self.current_bet_id = 0
+        self.current_user_id = 0
+
+    def create_account(self, username: str, initial_deposit: float) -> User:
+        self.current_user_id += 1
+        user = User(self.current_user_id, username, initial_deposit)
+        self.users[self.current_user_id] = user
+        return user
+
+    def place_bet(self, user_id: int, sport: str, teams: tuple, amount: float) -> Bet:
+        user = self.users.get(user_id)
+        if not user or amount > user.balance:
+            return None
+        current_time = datetime.datetime.now()
+        self.current_bet_id += 1
+        momio = get_bet(sport)
+        bet = Bet(self.current_bet_id, user_id, sport, momio, teams, amount)
+        if bet.is_valid(current_time, user.balance):
+            user.balance -= amount
+            user.bets.append(bet)
+            self.bets[self.current_bet_id] = bet
+            return bet
+        return None
+
+    def modify_bet(self, user_id: int, bet_id: int, amount: float, momio: float) -> None:
+        bet = self.bets.get(bet_id)
+        user = self.users.get(user_id)
+        if bet and user and bet.user_id == user_id:
+            initial_amount = bet.amount
+            if amount <= (user.balance + initial_amount):
+                bet.update_bet(amount, momio)
+                user.balance += initial_amount - amount
+
+    def report_investments(self, user_id: int) -> float:
+        user = self.users.get(user_id)
+        if user:
+            return sum(bet.amount for bet in user.bets if bet.status == 'pending')
+        return 0.0
+
+    def report_profit_loss(self, user_id: int) -> float:
+        user = self.users.get(user_id)
+        if user:
+            return user.calculate_profit_loss()
+        return 0.0
+
+    def list_user_transactions(self, user_id: int) -> list:
+        user = self.users.get(user_id)
+        if user:
+            return user.list_transactions()
+        return []
+
+    def validate_bet(self, team: str) -> bool:
+        # Placeholder for actual game status check
+        return True
+
+# Example Usage
+if __name__ == "__main__":
+    system = BettingSystem()
+    user = system.create_account("Alice", 100.0)
+    system.place_bet(user.user_id, 'soccer', ('TeamA', 'TeamB'), 50.0)
+    print(system.report_investments(user.user_id))
+    print(system.report_profit_loss(user.user_id))
+    print(system.list_user_transactions(user.user_id))

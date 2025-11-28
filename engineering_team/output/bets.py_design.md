@@ -1,78 +1,66 @@
 ```markdown
-# bets.py - A Python Module for Sports Betting Management
+# bets.py Module Design
 
-This module is a self-contained system that allows users to manage sports betting accounts, place bets, modify bets, and track their betting portfolios. Below is a detailed design of the module, outlining the classes and methods involved.
+This module, `bets.py`, is designed to manage a betting system where users can create accounts, place bets on sporting events, view their investments, and track their profits or losses. All classes and methods in this module are detailed below.
 
-## Class: Bet
+## Classes and Methods
 
-This class represents the core functionality of managing users and their bets on various sports events. It encapsulates methods to handle account management, place bets, and calculate portfolio statistics.
+### Class: User
 
-### Attributes
+- **Attributes:**
+  - `user_id (int)`: A unique identifier for the user.
+  - `username (str)`: The user's name.
+  - `balance (float)`: The current balance available for the user to bet.
+  - `initial_deposit (float)`: The starting amount deposited by the user.
+  - `bets (list of Bet)`: A list to track all the bets placed by the user.
 
-- `users`: A dictionary that stores user accounts with their associated data such as balance, portfolio, and transactions.
+- **Methods:**
+  - `__init__(self, user_id: int, username: str, initial_deposit: float)`: Initializes a new user with a specified ID, name, and initial deposit.
+  - `deposit(self, amount: float) -> None`: Adds funds to the user's balance.
+  - `withdraw(self, amount: float) -> None`: Removes funds from the user's balance if sufficient funds exist.
+  - `get_portfolio_value(self) -> float`: Returns the total value of the user's portfolio.
+  - `calculate_profit_loss(self) -> float`: Calculates and returns the user's profit or loss from their initial deposit.
+  - `list_transactions(self) -> list`: Returns a list of all the user's transactions.
 
-### Methods
+### Class: Bet
 
-#### `__init__(self)`
+- **Attributes:**
+  - `bet_id (int)`: A unique identifier for the bet.
+  - `user_id (int)`: The ID of the user who placed the bet.
+  - `sport (str)`: The sport on which the bet is placed.
+  - `momio (float)`: The odds for the bet.
+  - `teams (tuple of str)`: The teams involved in the bet.
+  - `amount (float)`: The amount of money placed on the bet.
+  - `status (str)`: The status of the bet (e.g., "pending," "won," "lost").
+  - `created_at (datetime)`: The timestamp when the bet was created.
 
-Initializes the Bet class, setting up the necessary data structures.
+- **Methods:**
+  - `__init__(self, bet_id: int, user_id: int, sport: str, momio: float, teams: tuple, amount: float)`: Initializes a new bet with the given details and sets its status to "pending".
+  - `update_bet(self, amount: float, momio: float) -> None`: Updates the bet's amount and momio.
+  - `finalize_bet(self, result: str) -> None`: Finalizes the bet status based on the match result.
+  - `is_valid(self, current_time: datetime, user_balance: float) -> bool`: Checks if the bet is valid based on available balance and game status.
 
-#### `create_user(self, username: str, initial_deposit: float) -> None`
+### Function: get_bet(sport: str) -> float
 
-Creates a user account with the specified username and initial deposit amount.
+- **Description:** External function used to obtain the current bet odds for a given sport. A test implementation returns fixed odds for soccer, basketball, and baseball.
 
-#### `place_bet(self, username: str, sport: str, amount: float) -> None`
+### Class: BettingSystem
 
-Allows a user to place a bet on a sporting event. It records the bet if valid or raises an exception if the bet is not possible due to insufficient funds or the match being ineligible for betting (already played or other restrictions).
+- **Attributes:**
+  - `users (dict of int: User)`: A dictionary mapping user IDs to User objects.
+  - `bets (dict of int: Bet)`: A dictionary mapping bet IDs to Bet objects.
+  - `current_bet_id (int)`: A counter to generate unique bet IDs.
+  - `current_user_id (int)`: A counter to generate unique user IDs.
 
-#### `modify_bet(self, username: str, sport: str, new_amount: float) -> None`
+- **Methods:**
+  - `__init__(self)`: Initializes the betting system with empty users and bets.
+  - `create_account(self, username: str, initial_deposit: float) -> User`: Creates a new user account and returns the User object.
+  - `place_bet(self, user_id: int, sport: str, teams: tuple, amount: float) -> Bet`: Registers a new bet for a user and returns the Bet object.
+  - `modify_bet(self, user_id: int, bet_id: int, amount: float, momio: float) -> None`: Modifies an existing bet with new details.
+  - `report_investments(self, user_id: int) -> float`: Provides the total investments for a user.
+  - `report_profit_loss(self, user_id: int) -> float`: Provides the total profit or loss for a user.
+  - `list_user_transactions(self, user_id: int) -> list`: Lists all transactions for a user.
+  - `validate_bet(self, team: str) -> bool`: Validates if a bet can be placed for the given team.
 
-Allows a user to modify an existing bet amount. It recalculates and updates the user's portfolio.
-
-#### `calculate_portfolio_value(self, username: str) -> float`
-
-Calculates and returns the total value of a user's current betting portfolio.
-
-#### `calculate_profit_loss(self, username: str) -> float`
-
-Calculates and reports the profit or loss based on the initial deposit available for betting.
-
-#### `report_investments(self, username: str) -> dict`
-
-Returns a dictionary of all active bets for a user, detailing the amount wagered and the sports involved.
-
-#### `report_transactions(self, username: str) -> list`
-
-Provides a chronological list of all transactions made by the user, including deposits, withdrawals, and bets.
-
-#### `validate_bet(self, username: str, sport: str, amount: float) -> None`
-
-Checks if the bet amount is valid and if the user has sufficient funds. It also verifies if the bet can be placed according to the match status.
-
-#### `get_bet(self, sport: str) -> float`
-
-A placeholder method that mimics an external function to get the current bet amount for a sport. This method should be replaced with the actual implementation in the production environment.
-
-### Additional Considerations
-
-- **Error Handling**: Every method is expected to handle and raise exceptions for invalid operations, such as trying to place a bet on an already concluded match, attempting to exceed available balance, etc.
-- **Data Persistence**: The current design does not include database interaction. For a real-world application, additional methods to load/save user data from/to a database should be considered.
-- **Concurrency**: Ensure thread-safety if multiple user sessions are to be supported concurrently.
-
-**Usage Example**
-
-```python
-bet_system = Bet()
-bet_system.create_user("john_doe", 1000.0)
-bet_system.place_bet("john_doe", "soccer", 100.0)
-profit_loss = bet_system.calculate_profit_loss("john_doe")
-investments = bet_system.report_investments("john_doe")
-transactions = bet_system.report_transactions("john_doe")
-
-print(f"Profit/Loss: {profit_loss}")
-print(f"Investments: {investments}")
-print(f"Transactions: {transactions}")
-```
-
-This layout provides a comprehensive overview of how the betting management system is structured and should function according to the requirements. This module can now be developed into a fully functional backend component with appropriate testing and UI integration.
+This design ensures that all functionality as described in the requirements will be met, and the system will be ready to be integrated with a simple UI for further interactions.
 ```

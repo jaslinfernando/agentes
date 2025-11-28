@@ -1,122 +1,88 @@
-
-# app.py
-
 import gradio as gr
-from bets import Bet, get_bet
+from bets import BettingSystem, get_bet
 
-# Initialize the betting back-end controller
-bet_system = Bet()
+# Initialize the betting system
+system = BettingSystem()
 
-# Function to create a user
-def create_user(username, initial_deposit):
-    try:
-        bet_system.create_user(username, float(initial_deposit))
-        return f"User {username} created with initial deposit of ${initial_deposit}."
-    except ValueError as e:
-        return str(e)
+def create_account(username, initial_deposit):
+    user = system.create_account(username, initial_deposit)
+    return f"Account created for {username} with initial deposit of {initial_deposit}. Current balance: {user.balance}"
 
-# Function to place a bet
-def place_bet(username, sport, amount):
-    try:
-        bet_system.place_bet(username, sport, float(amount))
-        return f"Placed {amount} bet on {sport} for user {username}."
-    except ValueError as e:
-        return str(e)
+def place_bet(username, sport, team1, team2, amount):
+    user_id = next((uid for uid, user in system.users.items() if user.username == username), None)
+    if user_id is None:
+        return "User account not found."
+    bet = system.place_bet(user_id, sport, (team1, team2), amount)
+    if bet:
+        return f"Placed bet on {sport} between {team1} and {team2}. Amount: {amount}"
+    return "Failed to place bet. Check balance or bet validity."
 
-# Function to modify a bet
-def modify_bet(username, sport, new_amount):
-    try:
-        bet_system.modify_bet(username, sport, float(new_amount))
-        return f"Modified bet on {sport} to new amount {new_amount} for user {username}."
-    except ValueError as e:
-        return str(e)
+def modify_bet(username, bet_id, new_amount, new_momio):
+    user_id = next((uid for uid, user in system.users.items() if user.username == username), None)
+    if user_id is None:
+        return "User account not found."
+    system.modify_bet(user_id, bet_id, new_amount, new_momio)
+    return f"Bet {bet_id} modified to new amount: {new_amount}, new momio: {new_momio}"
 
-# Function to calculate portfolio value
-def calculate_portfolio(username):
-    try:
-        value = bet_system.calculate_portfolio_value(username)
-        return f"Total portfolio value for {username} is ${value}."
-    except KeyError:
-        return "User does not exist."
-
-# Function to calculate profit or loss
-def calculate_profit_loss(username):
-    try:
-        profit_loss = bet_system.calculate_profit_loss(username)
-        return f"Profit/Loss for {username} is ${profit_loss}."
-    except KeyError:
-        return "User does not exist."
-
-# Function to report investments
 def report_investments(username):
-    try:
-        investments = bet_system.report_investments(username)
-        return f"Investments for {username}: {investments}"
-    except KeyError:
-        return "User does not exist."
+    user_id = next((uid for uid, user in system.users.items() if user.username == username), None)
+    if user_id is None:
+        return "User account not found."
+    investments = system.report_investments(user_id)
+    return f"Total investments for {username}: {investments}"
 
-# Function to report transactions
-def report_transactions(username):
-    try:
-        transactions = bet_system.report_transactions(username)
-        return f"Transactions for {username}: {transactions}"
-    except KeyError:
-        return "User does not exist."
+def report_profit_loss(username):
+    user_id = next((uid for uid, user in system.users.items() if user.username == username), None)
+    if user_id is None:
+        return "User account not found."
+    profit_loss = system.report_profit_loss(user_id)
+    return f"Current profit/loss for {username}: {profit_loss}"
 
-# Initialize Gradio Interface
-def gradio_interface():
-    with gr.Blocks() as demo:
-        gr.Markdown("# Simple Betting System Demo")
+def list_transactions(username):
+    user_id = next((uid for uid, user in system.users.items() if user.username == username), None)
+    if user_id is None:
+        return "User account not found."
+    transactions = system.list_user_transactions(user_id)
+    return f"Transactions for {username}: {transactions}"
 
-        with gr.Tab("Create User"):
-            username_input = gr.Textbox(placeholder="Enter username", label="Username")
-            deposit_input = gr.Number(label="Initial Deposit")
-            create_button = gr.Button("Create User")
-            create_output = gr.Textbox(label="Response")
-            create_button.click(fn=create_user, inputs=[username_input, deposit_input], outputs=create_output)
+with gr.Blocks() as demo:
+    with gr.Column():
+        username = gr.Textbox(label="Username", placeholder="Enter your username")
+        initial_deposit = gr.Number(label="Initial Deposit", value=100.0)
+        create_account_button = gr.Button("Create Account")
+        create_account_output = gr.Textbox(label="Create Account Output")
+        create_account_button.click(create_account, [username, initial_deposit], create_account_output)
 
-        with gr.Tab("Place Bet"):
-            username_bet_input = gr.Textbox(placeholder="Enter username", label="Username")
-            sport_input = gr.Radio(["soccer", "basketball", "baseball"], label="Sport")
-            amount_input = gr.Number(label="Bet Amount")
-            bet_button = gr.Button("Place Bet")
-            bet_output = gr.Textbox(label="Response")
-            bet_button.click(fn=place_bet, inputs=[username_bet_input, sport_input, amount_input], outputs=bet_output)
+    with gr.Column():
+        sport = gr.Dropdown(["soccer", "basketball", "baseball"], label="Sport")
+        team1 = gr.Textbox(label="Team 1")
+        team2 = gr.Textbox(label="Team 2")
+        amount = gr.Number(label="Bet Amount", value=10.0)
+        place_bet_button = gr.Button("Place Bet")
+        place_bet_output = gr.Textbox(label="Place Bet Output")
+        place_bet_button.click(place_bet, [username, sport, team1, team2, amount], place_bet_output)
 
-        with gr.Tab("Modify Bet"):
-            username_modify_input = gr.Textbox(placeholder="Enter username", label="Username")
-            sport_modify_input = gr.Radio(["soccer", "basketball", "baseball"], label="Sport")
-            new_amount_input = gr.Number(label="New Bet Amount")
-            modify_button = gr.Button("Modify Bet")
-            modify_output = gr.Textbox(label="Response")
-            modify_button.click(fn=modify_bet, inputs=[username_modify_input, sport_modify_input, new_amount_input], outputs=modify_output)
+    with gr.Column():
+        bet_id = gr.Number(label="Bet ID", value=1)
+        new_amount = gr.Number(label="New Bet Amount", value=10.0)
+        new_momio = gr.Number(label="New Momio", value=1.5)
+        modify_bet_button = gr.Button("Modify Bet")
+        modify_bet_output = gr.Textbox(label="Modify Bet Output")
+        modify_bet_button.click(modify_bet, [username, bet_id, new_amount, new_momio], modify_bet_output)
 
-        with gr.Tab("Portfolio Value"):
-            username_portfolio_input = gr.Textbox(placeholder="Enter username", label="Username")
-            portfolio_button = gr.Button("Check Portfolio Value")
-            portfolio_output = gr.Textbox(label="Response")
-            portfolio_button.click(fn=calculate_portfolio, inputs=username_portfolio_input, outputs=portfolio_output)
+    with gr.Column():
+        report_investments_button = gr.Button("Report Investments")
+        report_investments_output = gr.Textbox(label="Investments")
+        report_investments_button.click(report_investments, username, report_investments_output)
 
-        with gr.Tab("Profit/Loss"):
-            username_profit_input = gr.Textbox(placeholder="Enter username", label="Username")
-            profit_button = gr.Button("Check Profit/Loss")
-            profit_output = gr.Textbox(label="Response")
-            profit_button.click(fn=calculate_profit_loss, inputs=username_profit_input, outputs=profit_output)
+    with gr.Column():
+        report_profit_loss_button = gr.Button("Report Profit/Loss")
+        report_profit_loss_output = gr.Textbox(label="Profit/Loss")
+        report_profit_loss_button.click(report_profit_loss, username, report_profit_loss_output)
 
-        with gr.Tab("Investments Report"):
-            username_investments_input = gr.Textbox(placeholder="Enter username", label="Username")
-            investments_button = gr.Button("Report Investments")
-            investments_output = gr.Textbox(label="Response")
-            investments_button.click(fn=report_investments, inputs=username_investments_input, outputs=investments_output)
+    with gr.Column():
+        list_transactions_button = gr.Button("List Transactions")
+        list_transactions_output = gr.Textbox(label="Transactions")
+        list_transactions_button.click(list_transactions, username, list_transactions_output)
 
-        with gr.Tab("Transactions Report"):
-            username_transactions_input = gr.Textbox(placeholder="Enter username", label="Username")
-            transactions_button = gr.Button("Report Transactions")
-            transactions_output = gr.Textbox(label="Response")
-            transactions_button.click(fn=report_transactions, inputs=username_transactions_input, outputs=transactions_output)
-
-    return demo
-
-if __name__ == "__main__":
-    app = gradio_interface()
-    app.launch()
+demo.launch()

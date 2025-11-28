@@ -3,8 +3,10 @@ from util import css, js, Color
 import pandas as pd
 from bets_configuration import names, lastnames, short_model_names
 import plotly.express as px
-from accounts import Account
 from database import read_log
+
+from bets import User
+import json
 
 mapper = {
     "trace": Color.WHITE,
@@ -15,18 +17,33 @@ mapper = {
     "account": Color.RED,
 }
 
+REFRESH_TIMER= 60 #120
+REFRESH_LOG_TIMER=60 #0.5
+
 class Gambler:
     def __init__(self, name: str, lastname: str, model_name: str):
         self.name = name
         self.lastname = lastname
         self.model_name = model_name
-        self.account = Account.get(name)
+        self.account = User.get(name)
 
     def reload(self):
-        self.account = Account.get(self.name)
+        self.account = User.get(self.name)
         
     def get_title(self) -> str:
         return f"<div style='text-align: center;font-size:34px;'>{self.name}<span style='color:#ccc;font-size:24px;'> ({self.model_name}) - {self.lastname}</span></div>"
+    
+    def get_strategy(self) -> str:
+        return self.account.get_strategy()
+    
+    def get_portfolio_value(self) -> str:
+        """Calculate total portfolio value based on current prices"""
+        portfolio_value = self.account.get_portfolio_value() or 0.0
+        pnl = self.account.calculate_profit_loss(portfolio_value) or 0.0
+        color = "green" if pnl >= 0 else "red"
+        emoji = "⬆" if pnl >= 0 else "⬇"
+        return f"<div style='text-align: center;background-color:{color};'><span style='font-size:32px'>${portfolio_value:,.0f}</span><span style='font-size:24px'>&nbsp;&nbsp;&nbsp;{emoji}&nbsp;${pnl:,.0f}</span></div>"
+    
     
     def get_portfolio_value_df(self) -> pd.DataFrame:
         df = pd.DataFrame(self.account.portfolio_value_time_series, columns=["datetime", "value"])
@@ -49,37 +66,11 @@ class Gambler:
         fig.update_yaxes(tickfont=dict(size=8), tickformat=",.0f")
         return fig
     
-    def get_holdings_df(self) -> pd.DataFrame:
-        """Convert holdings to DataFrame for display"""
-        holdings = self.account.get_holdings()
-        if not holdings:
-            return pd.DataFrame(columns=["Symbol", "Quantity"])
-
-        df = pd.DataFrame(
-            [{"Symbol": symbol, "Quantity": quantity} for symbol, quantity in holdings.items()]
-        )
-        return df
-    
-    def get_transactions_df(self) -> pd.DataFrame:
-        """Convert transactions to DataFrame for display"""
-        transactions = self.account.list_transactions()
-        if not transactions:
-            return pd.DataFrame(columns=["Timestamp", "Symbol", "Quantity", "Price", "Rationale"])
-
-        return pd.DataFrame(transactions)
-    
-    def get_portfolio_value(self) -> str:
-        """Calculate total portfolio value based on current prices"""
-        portfolio_value = self.account.calculate_portfolio_value() or 0.0
-        pnl = self.account.calculate_profit_loss(portfolio_value) or 0.0
-        color = "green" if pnl >= 0 else "red"
-        emoji = "⬆" if pnl >= 0 else "⬇"
-        return f"<div style='text-align: center;background-color:{color};'><span style='font-size:32px'>${portfolio_value:,.0f}</span><span style='font-size:24px'>&nbsp;&nbsp;&nbsp;{emoji}&nbsp;${pnl:,.0f}</span></div>"
-    
     def get_logs(self, previous=None) -> str:
         logs = read_log(self.name, last_n=13)
         response = ""
         for log in logs:
+            print(f"***log:{log}")
             timestamp, type, message = log
             color = mapper.get(type, Color.WHITE).value
             response += f"<span style='color:{color}'>{timestamp} : [{type}] {message}</span><br/>"
@@ -87,6 +78,28 @@ class Gambler:
         if response != previous:
             return response
         return gr.update()
+    
+    def get_holdings_df(self) -> pd.DataFrame:
+        """Convert holdings to DataFrame for display"""
+        holdings = self.account.get_holdings()
+        if not holdings:
+            return pd.DataFrame(columns=["Sport", "Revenue"])
+
+        df = pd.DataFrame(
+            [{"Sport": sport, "Revenue": revenue} for sport, revenue in holdings.items()]
+        )
+        return df
+    
+    def get_bets_df(self) -> pd.DataFrame:
+        """Convert bets to DataFrame for display"""
+        transactions = self.account.list_transactions()
+
+        if not transactions:
+            return pd.DataFrame(columns=["Timestamp", "Sport",  "Momio", "Amount", "Teams","Winner","Chose", "Status", "Rationale"])
+
+        return pd.DataFrame(transactions)
+
+    
 
 class GamblerView:
     def __init__(self, trader: Gambler):
@@ -111,7 +124,7 @@ class GamblerView:
                 self.holdings_table = gr.Dataframe(
                     value=self.trader.get_holdings_df,
                     label="Holdings",
-                    headers=["Symbol", "Quantity"],
+                    headers=["Sport", "Revenue"], #add Perdidas- Losses
                     row_count=(5, "dynamic"),
                     col_count=2,
                     max_height=300,
@@ -119,16 +132,16 @@ class GamblerView:
                 )
             with gr.Row():
                 self.transactions_table = gr.Dataframe(
-                    value=self.trader.get_transactions_df,
-                    label="Recent Transactions",
-                    headers=["Timestamp", "Symbol", "Quantity", "Price", "Rationale"],
+                    value=self.trader.get_bets_df,
+                    label="Recent bets",
+                    headers=["Timestamp", "Sport", "Momio", "Amount","Teams", "Rationale"],
                     row_count=(5, "dynamic"),
-                    col_count=5,
+                    col_count=6,
                     max_height=300,
+                    wrap=True,
                     elem_classes=["dataframe-fix"],
                 )
-
-        timer = gr.Timer(value=120)
+        timer = gr.Timer(value=REFRESH_TIMER)
         timer.tick(
             fn=self.refresh,
             inputs=[],
@@ -141,7 +154,8 @@ class GamblerView:
             show_progress="hidden",
             queue=False,
         )
-        log_timer = gr.Timer(value=0.5)
+
+        log_timer = gr.Timer(value=REFRESH_LOG_TIMER)
         log_timer.tick(
             fn=self.trader.get_logs,
             inputs=[self.log],
@@ -151,13 +165,15 @@ class GamblerView:
         )
 
     def refresh(self):
+        print("***refreshing GUI")
         self.trader.reload()
         return (
             self.trader.get_portfolio_value(),
             self.trader.get_portfolio_value_chart(),
             self.trader.get_holdings_df(),
-            self.trader.get_transactions_df(),
+            self.trader.get_bets_df(),
         )
+
 
 # Main UI construction
 def create_ui():
@@ -182,4 +198,3 @@ def create_ui():
 if __name__ == "__main__":
     ui = create_ui()
     ui.launch(inbrowser=True)
-

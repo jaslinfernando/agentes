@@ -1,5 +1,4 @@
 from contextlib import AsyncExitStack
-from accounts_client import read_accounts_resource, read_strategy_resource
 from tracers import make_trace_id
 from agents import Agent, Tool, Runner, OpenAIChatCompletionsModel, trace
 from openai import AsyncOpenAI
@@ -7,6 +6,9 @@ from dotenv import load_dotenv
 import os
 import json
 from agents.mcp import MCPServerStdio
+
+from bets_client import read_strategy_resource,read_accounts_resource
+
 from templates import (
     researcher_instructions,
     gambler_instructions,
@@ -17,7 +19,12 @@ from templates import (
 
 from mcp_params import trader_mcp_server_params, researcher_mcp_server_params
 
+#from accounts_client import read_accounts_resource, read_strategy_resource
+
+
 load_dotenv(override=True)
+
+CLIENT_SESSION_TIMEOUT_SECONDS = 120
 
 deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
 google_api_key = os.getenv("GOOGLE_API_KEY")
@@ -29,7 +36,7 @@ GROK_BASE_URL = "https://api.x.ai/v1"
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
-MAX_TURNS = 30
+MAX_TURNS = 5
 
 openrouter_client = AsyncOpenAI(base_url=OPENROUTER_BASE_URL, api_key=openrouter_api_key)
 deepseek_client = AsyncOpenAI(base_url=DEEPSEEK_BASE_URL, api_key=deepseek_api_key)
@@ -63,7 +70,7 @@ async def get_researcher_tool(mcp_servers, model_name) -> Tool:
     return researcher.as_tool(tool_name="Researcher", tool_description=research_tool())
 
 class Gambler:
-    def __init__(self, name: str, lastname="Trader", model_name="gpt-4o-mini"):
+    def __init__(self, name: str, lastname="Gambler", model_name="gpt-4o-mini"):
         self.name = name
         self.lastname = lastname
         self.agent = None
@@ -84,10 +91,9 @@ class Gambler:
     async def get_account_report(self) -> str:
         account = await read_accounts_resource(self.name)
         account_json = json.loads(account)
-        print ( f"***account_json: {account_json}")
         account_json.pop("portfolio_value_time_series", None)
         return json.dumps(account_json)
-
+    
     async def run_agent(self, trader_mcp_servers, researcher_mcp_servers):
         self.agent = await self.create_agent(trader_mcp_servers, researcher_mcp_servers)
         account = await self.get_account_report()
@@ -103,21 +109,21 @@ class Gambler:
         async with AsyncExitStack() as stack:
             trader_mcp_servers = [
                 await stack.enter_async_context(
-                    MCPServerStdio(params, client_session_timeout_seconds=120)
+                    MCPServerStdio(params, client_session_timeout_seconds=CLIENT_SESSION_TIMEOUT_SECONDS)
                 )
                 for params in trader_mcp_server_params
             ]
             async with AsyncExitStack() as stack:
                 researcher_mcp_servers = [
                     await stack.enter_async_context(
-                        MCPServerStdio(params, client_session_timeout_seconds=120)
+                        MCPServerStdio(params, client_session_timeout_seconds=CLIENT_SESSION_TIMEOUT_SECONDS)
                     )
                     for params in researcher_mcp_server_params(self.name)
                 ]
                 await self.run_agent(trader_mcp_servers, researcher_mcp_servers)
 
     async def run_with_trace(self):
-        trace_name = f"{self.name}-trading" if self.do_trade else f"{self.name}-rebalancing"
+        trace_name = f"{self.name}-beting" if self.do_trade else f"{self.name}-rebalancing"
         trace_id = make_trace_id(f"{self.name.lower()}")
         with trace(trace_name, trace_id=trace_id):
             await self.run_with_mcp_servers()
@@ -126,6 +132,6 @@ class Gambler:
         try:
             await self.run_with_trace()
         except Exception as e:
-            print(f"Error running trader {self.name}: {e}")
+            print(f"Error running gambler {self.name}: {e}")
         self.do_trade = not self.do_trade
-    
+

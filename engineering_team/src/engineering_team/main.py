@@ -14,7 +14,8 @@ os.makedirs('output', exist_ok=True)
 requirements = """
 The system must allow users to create accounts and link those accounts to bets. Users will be able to place bets and modify their sports bets.
 
-The system must allow users to register a bet on a sporting event, specifying the amount.
+The system must allow users to register a bet on a sporting event, specifying the amount, sport momio,teams to bets in that game like a house of bets.
+You could take as site of reference this https://nica.bet/apuestas-en-vivo.
 
 The system must calculate the total value of the user's portfolio and the profit or loss on the initial deposit available for betting.
 
@@ -24,7 +25,7 @@ The system must be able to report the user's profits or losses at any time.
 
 The system must be able to list the user's transactions over time.
 
-The system must prevent the user from withdrawing funds that would leave them with a negative balance, betting more money than they can afford, or betting on matches that have already been played.
+The system must prevent the user from bet funds that would leave them with a negative balance, betting more money than they can afford, or betting on matches that have already been played.
 
 The system has access to the `get_bet(sport)` function, which returns the current bet for a sport and includes a test implementation that returns fixed amounts for soccer, basketball, and baseball.
 """
