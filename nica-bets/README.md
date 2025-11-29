@@ -44,5 +44,3 @@ $ uv run aap.py
 
 ## Vista
 ![agregar1](doc/img/nica-bets.png)
-
-Se envia el usuario y la clave al endpoint ´/authenticar/´ para que se genere el token de autenticación que dura unos 30 minutos(esto es configurable)
