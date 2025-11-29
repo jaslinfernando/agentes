@@ -8,7 +8,7 @@
 * [Vista](#)
 
 Proyecto de AI que busca oportunidades para realizar apuestas deportivas aplicando estrategias diferentes para cada agente.
-- Un agente optimista que siempre que se apoya de otro agente que realiza busquedas en internet para saber futuros eventos en difentes deportes.
+- Un agente optimista que siempre se apoya de otro agente que realiza busquedas en internet para saber futuros eventos en diferentes deportes.
 - Un agente pesimista que apuesta siempre pensando en que va a perder y es muy comedido con sus apuestas.
 - Un agente random que pude apostar de forma aleatoria sin tener criterios solidos sobre algun deporte o evento, solo apuesta.
 
