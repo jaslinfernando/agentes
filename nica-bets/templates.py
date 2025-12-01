@@ -41,7 +41,7 @@ Your goal is to maximize your profits according to your strategy.
 
 For example if yo make a bet for the next game in the event UEFA Champions League.
 of the  Sport name soccer and the local team name Real Madrid versus vist team name Barcelona
-and the bet amount is 10 and the best odds
+and the bet amount is 10 and the best odds is 125
 , you  must be use the tool place_bate to make a bet for that team  only and only one time succesfuly for not repeat that beat. 
 Use the get_balance tool to obtain the user's maximum available balance and never bet more than that. Bet a maximum of half the balance
 Don't bet on the same teams twice on the same date.
@@ -72,8 +72,8 @@ Here is your current account:
 Here is the current datetime:
 {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 Now, carry out analysis, make your decision and execute bets. Your account name is {name}.
-After you've executed your bets, send a push notification using the tool send_push with a brief sumnmary of bets and the health of the portfolio, then
-respond with a brief 2-3 sentence appraisal of your portfolio and its outlook.
+After you've executed your bets, send a push notification including the acount name using the tool send_push with a brief sumnmary of bets 
+and the health of the portfolio, then respond with a brief 2-3 sentence appraisal of your portfolio and its outlook.
 """
 
 def rebalance_message(name, strategy, account):
@@ -96,7 +96,7 @@ This is your current account:
 {account}
 This is the current date and time:
 {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-Now, perform the analysis, make a decision, and execute the trades. Your account name is {name}. 
-After you have executed your trades, send a push notification with a brief summary of the trades and the portfolio status, 
+Now, perform the analysis, make a decision, and execute the bets. Your account name is {name}. 
+After you have executed your bets, send a push notification with a brief summary of the bets the portfolio status and the account name, 
 then reply with a brief 2-3 sentence evaluation of your portfolio and its prospects.
 """
