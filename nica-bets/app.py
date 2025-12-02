@@ -289,7 +289,7 @@ if __name__ == "__main__":
         args=(run_every_n_minutes,),#la coma depues del nombre de la función es importante
         daemon=True # IMPORTANT: Ensures thread dies when the main program exits
     )
-    # background_thread.start()
+    background_thread.start()
     print("[MAIN] Background thread started in parallel.")
 
     # Launch the synchronous Gradio UI (This line BLOCKS execution)
