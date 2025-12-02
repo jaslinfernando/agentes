@@ -42,6 +42,7 @@ function refresh() {
 
 class Color(Enum):
     RED = "#dd0000"
+    ORANGE = "#ff7c00"
     GREEN = "#00dd00"
     YELLOW = "#dddd00"
     BLUE = "#0000ee"

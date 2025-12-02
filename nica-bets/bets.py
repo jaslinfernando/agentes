@@ -152,9 +152,11 @@ class User(BaseModel):
     def list_transactions(self) -> list:       
         
         dataList = []
+        index = 1
         for t in self.bets:
             data = {}
             #data["username"] = t.username
+            data["Row"] = index
             data["Sport"] = t.momio.game.local_team.sport.name
             data["Momio"] = f"local({t.momio.local_momio}) - visit({t.momio.visit_momio})"
             data["Amount"] = t.bet_amount
@@ -162,8 +164,10 @@ class User(BaseModel):
             data["Winner"] = t.momio.game.winner_team.name
             data["Chosen"] = t.chosen_team.name
             data["Status"] = t.status
+            data["Score"] = f"{t.momio.game.final_score}"
             data["Rationale"] = t.rationale            
             dataList.append(data)
+            index += 1
 
         return dataList
         #return [transaction.model_dump() for transaction in self.bets]
@@ -226,7 +230,7 @@ class User(BaseModel):
             #return bet
         return None
     
-    def update_bet( self,username: str, bet_id:str, team_name: str, status: str) -> Bet:
+    def update_bet( self,username: str, bet_id:str, team_name: str, status: str, final_score: str) -> Bet:
 
         total_profit = 0.0 #"Monto total retornado si gana (Monto Apostado * Momio)"
         net_profit_amount = 0.0 #Ganancia total - Monto Apostado
@@ -243,6 +247,7 @@ class User(BaseModel):
                 f = b.update_bet(team_name=team_name,status=status)                
         
         if f is not None:
+            f.momio.game.final_score=final_score
             team_name = team_name
             chosen_team_name= f.chosen_team.name
             if team_name.upper() == chosen_team_name.upper():

@@ -26,7 +26,7 @@ async def get_holdings(name: str) -> dict[str, int]:
     return User.get(name).holdings
 
 @mcp.tool(name="place_bate", description="Place bet of the given account name")
-async def place_bate(name: str, sportname: str, local_team_name: str, visit_team_name:str, local_momio_value: float, bet_amount: float, rationale: str):
+async def place_bate(name: str, sportname: str, local_team_name: str, visit_team_name:str, local_momio_value: float, bet_amount: float, rationale: str,score: str):
     """Place bet of the given account name.
 
     Args:
@@ -37,12 +37,13 @@ async def place_bate(name: str, sportname: str, local_team_name: str, visit_team
         local_momio_value local momio value
         bet_amount bet amount
         rationale: The rationale for the purchase and fit with the account's strategy
+        score: The score of the possible outcome of the match
     """
 
     sport= Sport(name=sportname)
     local_team = Team(name=local_team_name,sport=sport)
     visit_team = Team(name=visit_team_name,sport=sport)
-    final_score = ""
+    final_score = f"Posibble: {score}"
     date_time = datetime.now()
     winner_team = Team(name="",sport=sport) # X equipo que ha ganado, no lo sabemos aun pero se sabrá cuando se ejecute la tool que actualiza la apuesta
     game = Game(local_team=local_team,visit_team=visit_team,final_score=final_score,winner_team=winner_team)
@@ -61,7 +62,7 @@ async def place_bate(name: str, sportname: str, local_team_name: str, visit_team
 
 
 @mcp.tool(name="update_bet", description="Updates the status and calculates profit/loss for a user's bet.")
-async def update_bet(username: str, bet_id: str, team_name: str, status: str)-> Dict:
+async def update_bet(username: str, bet_id: str, team_name: str, status: str, score: str)-> Dict:
     """
     Actualiza el estado de una apuesta específica, calcula ganancias y ajusta el saldo del usuario.
 
@@ -70,9 +71,11 @@ async def update_bet(username: str, bet_id: str, team_name: str, status: str)-> 
         bet_id: El ID único de la apuesta a actualizar.
         team_name: El nombre del equipo declarado ganador del juego.
         status: El estado de la apuesta ('Win', 'Lose', 'Push').
+        score: The final score of the match
     """
     
-    bet = User.get(name=username).update_bet(username=username,bet_id=bet_id,team_name=team_name,status=status)   
+    final_score = score
+    bet = User.get(name=username).update_bet(username=username,bet_id=bet_id,team_name=team_name,status=status,final_score=final_score)   
     return bet.model_dump()
 
 @mcp.tool(name="get_balance", description="Get the balance of the user.")

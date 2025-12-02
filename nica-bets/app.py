@@ -16,7 +16,8 @@ mapper = {
     "function": Color.GREEN,
     "generation": Color.YELLOW,
     "response": Color.MAGENTA,
-    "account": Color.RED,
+    #"account": Color.RED,
+    "account": Color.ORANGE,
 }
 
 REFRESH_TIMER= 60 #120
@@ -30,6 +31,7 @@ class Gambler:
         self.lastname = lastname
         self.model_name = model_name
         self.account = User.get(name)
+        
 
     def reload(self):
         self.account = User.get(self.name)
@@ -107,9 +109,9 @@ class Gambler:
         if not transactions:
             return pd.DataFrame(columns=["Timestamp", "Sport",  "Momio", "Amount", "Teams","Winner","Chose", "Status", "Rationale"])
 
-        return pd.DataFrame(transactions)
-
+        return pd.DataFrame(transactions)    
     
+        
 
 class GamblerView:
     def __init__(self, trader: Gambler):
@@ -119,8 +121,36 @@ class GamblerView:
         self.holdings_table = None
         self.transactions_table = None
 
-    def make_ui(self):
-        #Pintar la estrategi de los apostadoress
+
+    def get_row_data(self, evt: gr.SelectData, transactions_data: pd.DataFrame):
+    
+        # Check if a row was actually clicked (not a header)
+        if evt.index is None: #or not isinstance(evt.index, tuple):
+            return None
+            
+        # Get the index of the clicked row
+        row_index = evt.index[0] 
+        
+        # Extract the complete data for the selected row
+        #transactions_table = DataFrame
+        selected_row = transactions_data.iloc[row_index].to_dict()
+        
+        # Format the data nicely for the popup
+        popup_content = (
+        f"--- Detail (Sport: {selected_row['Sport']}) ---\n"
+        f"Amount: {selected_row['Amount']}\n"
+        f"Teams: {selected_row['Teams']}\n"
+        f"Chosen: {selected_row['Chosen']}\n"
+        f"Winner: {selected_row['Winner']}\n"
+        f"Status: You {selected_row['Status']}\n"
+        f"Rationale:\n{selected_row['Rationale']}"
+        )
+       
+        return popup_content
+
+
+    def make_ui(self,popup_msg):        
+        
         with gr.Column():
             gr.HTML(self.trader.get_title())
             with gr.Row():
@@ -141,19 +171,33 @@ class GamblerView:
                     elem_classes=["dataframe-fix-small"],
                 )
             with gr.Row():
+                df_method = self.trader.get_bets_df
                 self.transactions_table = gr.Dataframe(
-                    value=self.trader.get_bets_df,
+                    value=df_method,
                     label="Recent bets",
                     headers=["Timestamp", "Sport", "Momio", "Amount","Teams", "Rationale"],
                     row_count=(5, "dynamic"),
-                    col_count=6,
+                    col_count=(6,'fixed'),
                     max_height=300,
                     wrap=True,
                     elem_classes=["dataframe-fix"],
+                    interactive=False,
                 )
+
+                # When a row is selected (clicked)...
+                #transactions_table = DataFrame
+                self.transactions_table.select(
+                    fn=self.get_row_data,
+                    inputs=[self.transactions_table],
+                    outputs=popup_msg, # ...put the formatted data into the hidden textbox.
+                    queue=False #ensures quick response time
+                )
+                
+                
             with gr.Row(variant="panel"):
                 self.log = gr.HTML(self.trader.get_logs)
 
+        
         timer = gr.Timer(value=REFRESH_TIMER)
         timer.tick(
             fn=self.refresh,
@@ -185,10 +229,23 @@ class GamblerView:
             self.trader.get_portfolio_value_chart(),
             self.trader.get_holdings_df(),
             self.trader.get_bets_df(),
+            #self.trader.get_title(),
         )
-
+            
+    
 
 # Main UI construction
+js_code = """
+        (message_string) => {
+            if (message_string) {
+            console.log("row: "+ message_string);
+                alert(message_string);
+                // Return null to clear the component's value, ensuring the next click registers as a change.
+                return [null]; 
+            }
+            return [null];
+        }
+    """
 def create_ui():
     """Create the main Gradio UI for the bet simulation"""
 
@@ -199,11 +256,20 @@ def create_ui():
     trader_views = [GamblerView(trader) for trader in traders]
 
     with gr.Blocks(
-        title="Gamblers", css=css, js=js, theme=gr.themes.Default(primary_hue="sky"), fill_width=True
+        title="Gamblers", css=css, js=js, theme=gr.themes.Default(primary_hue="sky"), fill_width=True        
     ) as ui:
+        popup_msg = gr.Textbox(visible=False, label="Popup Content Holder")
         with gr.Row():
             for trader_view in trader_views:
-                trader_view.make_ui()
+                trader_view.make_ui(popup_msg)
+            
+            popup_msg.change(
+            fn=lambda content: None, # Function to clear the box
+            inputs=[popup_msg], 
+            outputs=[popup_msg],
+            js=js_code, # The alert logic
+            queue=False
+        )
 
     return ui
 
@@ -223,12 +289,12 @@ if __name__ == "__main__":
         args=(run_every_n_minutes,),#la coma depues del nombre de la función es importante
         daemon=True # IMPORTANT: Ensures thread dies when the main program exits
     )
-    background_thread.start()
+    # background_thread.start()
     print("[MAIN] Background thread started in parallel.")
 
     # Launch the synchronous Gradio UI (This line BLOCKS execution)
     try:
-        ui.launch(share=True) 
+        ui.launch(share=False) 
     except KeyboardInterrupt:
         # Graceful exit if the user presses Ctrl+C
         print("\n[MAIN] Caught KeyboardInterrupt. Shutting down...")
