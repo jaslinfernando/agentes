@@ -122,7 +122,7 @@ class GamblerView:
         self.transactions_table = None
 
 
-    def get_row_data(self, evt: gr.SelectData, transactions_data: pd.DataFrame):
+    def get_row_data(self, evt: gr.SelectData, transactions_data: pd.DataFrame, t: gr.Textbox):
     
         # Check if a row was actually clicked (not a header)
         if evt.index is None: #or not isinstance(evt.index, tuple):
@@ -145,14 +145,20 @@ class GamblerView:
         f"Status: You {selected_row['Status']}\n"
         f"Rationale:\n{selected_row['Rationale']}"
         )
+        
        
         return popup_content
 
 
-    def make_ui(self,popup_msg):        
+    def make_ui(self):
+        
+        popup_msg = gr.Textbox(visible=False, label= f"Popup Content Holder for: {self.trader.name}", elem_id=id)        
         
         with gr.Column():
             gr.HTML(self.trader.get_title())
+
+            # with gr.Row():
+            #     popup_msg
             with gr.Row():
                 self.portfolio_value = gr.HTML(self.trader.get_portfolio_value)
             with gr.Row():
@@ -182,21 +188,27 @@ class GamblerView:
                     wrap=True,
                     elem_classes=["dataframe-fix"],
                     interactive=False,
-                )
-
-                # When a row is selected (clicked)...
-                #transactions_table = DataFrame
-                self.transactions_table.select(
-                    fn=self.get_row_data,
-                    inputs=[self.transactions_table],
-                    outputs=popup_msg, # ...put the formatted data into the hidden textbox.
-                    queue=False #ensures quick response time
-                )
+                )            
                 
                 
             with gr.Row(variant="panel"):
                 self.log = gr.HTML(self.trader.get_logs)
 
+        # When a row is selected (clicked)...
+        #transactions_table = DataFrame
+        self.transactions_table.select(
+                    fn=self.get_row_data,
+                    inputs=[self.transactions_table,popup_msg,],
+                    outputs=popup_msg, # ...put the formatted data into the hidden textbox.
+                    queue=False #ensures quick response time
+                )
+        popup_msg.change(
+                fn=lambda content: None, # Function to clear the box
+                inputs=[popup_msg], 
+                #outputs=[popup_msg],
+                js=js_code, # The alert logic
+                queue=False
+            )
         
         timer = gr.Timer(value=REFRESH_TIMER)
         timer.tick(
@@ -230,8 +242,7 @@ class GamblerView:
             self.trader.get_holdings_df(),
             self.trader.get_bets_df(),
             #self.trader.get_title(),
-        )
-            
+        )            
     
 
 # Main UI construction
@@ -241,11 +252,13 @@ js_code = """
             console.log("row: "+ message_string);
                 alert(message_string);
                 // Return null to clear the component's value, ensuring the next click registers as a change.
-                return [null]; 
+                return ; 
             }
-            return [null];
+            return;
         }
     """
+
+
 def create_ui():
     """Create the main Gradio UI for the bet simulation"""
 
@@ -258,18 +271,12 @@ def create_ui():
     with gr.Blocks(
         title="Gamblers", css=css, js=js, theme=gr.themes.Default(primary_hue="sky"), fill_width=True        
     ) as ui:
-        popup_msg = gr.Textbox(visible=False, label="Popup Content Holder")
+        
+       
         with gr.Row():
             for trader_view in trader_views:
-                trader_view.make_ui(popup_msg)
-            
-            popup_msg.change(
-            fn=lambda content: None, # Function to clear the box
-            inputs=[popup_msg], 
-            outputs=[popup_msg],
-            js=js_code, # The alert logic
-            queue=False
-        )
+                id = "id_" + trader_view.trader.name                
+                trader_view.make_ui()
 
     return ui
 
