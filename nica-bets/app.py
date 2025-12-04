@@ -138,12 +138,13 @@ class GamblerView:
         # Format the data nicely for the popup
         popup_content = (
         f"--- Detail (Sport: {selected_row['Sport']}) ---\n"
-        f"Amount: {selected_row['Amount']}\n"
+        f"Amount 💰:  {selected_row['Amount']}\n"
         f"Teams: {selected_row['Teams']}\n"
         f"Chosen: {selected_row['Chosen']}\n"
         f"Winner: {selected_row['Winner']}\n"
         f"Status: You {selected_row['Status']}\n"
-        f"Rationale:\n{selected_row['Rationale']}"
+        f"Score -->  {selected_row['Score']}\n"
+        f"Rationale 🧠:  \n{selected_row['Rationale']}"
         )
         
        
@@ -296,6 +297,7 @@ if __name__ == "__main__":
         args=(run_every_n_minutes,),#la coma depues del nombre de la función es importante
         daemon=True # IMPORTANT: Ensures thread dies when the main program exits
     )
+
     background_thread.start()
     print("[MAIN] Background thread started in parallel.")
 

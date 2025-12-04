@@ -128,7 +128,8 @@ class User(BaseModel):
                 "balance": INITIAL_BALANCE,
                 "strategy": "",
                 "bets": [],
-                "holdings": {},
+                #"holdings": {},
+                "holdings": { "soccer": 0.0, "baseball": 0.0, "basketball": 0.0},
                 "portfolio_value_time_series": []
             }
 
@@ -158,9 +159,9 @@ class User(BaseModel):
             #data["username"] = t.username
             data["Row"] = index
             data["Sport"] = t.momio.game.local_team.sport.name
-            data["Momio"] = f"local({t.momio.local_momio}) - visit({t.momio.visit_momio})"
+            data["Momio"] = f"local({t.momio.local_momio}) - visit ({t.momio.visit_momio})"
             data["Amount"] = t.bet_amount
-            data["Teams"] = f"local ({t.momio.game.local_team.name} ) - visit({t.momio.game.visit_team.name}))"
+            data["Teams"] = f"local ({t.momio.game.local_team.name} ) - visit ({t.momio.game.visit_team.name}))"
             data["Winner"] = t.momio.game.winner_team.name
             data["Chosen"] = t.chosen_team.name
             data["Status"] = t.status
